@@ -1,0 +1,200 @@
+---
+title: "HW03"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+library(tidyverse)
+setwd("C:/Users/YJ-HWANG/Desktop/21-2/자료분석특론")
+```
+         
+         
+## 1.
+```{r}
+kidney <- read.csv("kidney.csv")[,2:3]
+head(kidney)
+```
+        
+#### (a)
+```{r}
+cors <- c()
+for (i in 1:nrow(kidney)) {
+  cors[i] <- cor(kidney$age[-i], kidney$tot[-i])
+}
+
+cor_all <- cor(kidney$age, kidney$tot)
+
+se_jack <- sqrt((nrow(kidney)-1) / nrow(kidney) * sum((cors-cor_all)^2))
+se_jack
+```
+       
+#### (b)
+```{r}
+diff <- cors-cor_all
+data.frame(diff) %>% ggplot(aes(diff))+
+  geom_histogram(fill="indianred1")+theme_light()+
+  labs(title="histogram of theta(i)-theta(.)")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+         
+i번째를 뺀 theta의 추정치와 전체 데이터의 theta의 추정치의 차이가 0.01이상인 경우가 소수 존재한다. 다른 대부분의 데이터와 값의 차이가 나므로 해당 데이터들이 영향을 많이 미치는 값들이라고 할 수 있다. 해당 데이터들을 확인해본다.
+```{r}
+idx <- which(diff >= 0.01)
+kidney[idx,]
+```
+            
+            
+            
+## 2.
+![HW3-2](HW3_2.jpg)
+            
+            
+## 3.
+#### (a)
+```{r}
+super <- read.csv('supernova.txt', sep=" ")
+head(super)
+```
+             
+```{r}
+## full model
+all_f <- lm(Magnitude~., data=super)
+
+d <- c()
+for (i in 1:nrow(super)){
+  newdata <- super[-i, ]
+  m <- lm(Magnitude~., data=newdata)
+  real_y <- super[i, 11]
+  pred_y <- predict(m, newdata=super[i, -11])
+  d[i] <- (real_y - pred_y)^2
+}
+err_f <- sum(d) / nrow(super)
+err_f
+```
+        
+-> 모든 변수를 사용했을 때의 cross validation error: 1.663
+```{r}
+## reduced model
+super1 <- super[, c(1,2,4,6,7,11)]
+all_r <- lm(Magnitude~., data=super1)
+
+d <- c()
+for (i in 1:nrow(super1)){
+  newdata <- super1[-i, ]
+  m <- lm(Magnitude~., data=newdata)
+  real_y <- super1[i, 6]
+  pred_y <- predict(m, newdata=super1[i, -6])
+  d[i] <- (real_y - pred_y)^2
+}
+err_r <- sum(d) / nrow(super1)
+err_r
+```
+       
+-> regression 결과 coefficient가 작은 5개의 변수를 제외했을 때의 cross validation error : 1.136        
+          
+          
+#### (b)
+```{r}
+all_r <- lm(Magnitude~., data=super1)  # 전체로 했을 때 낮은 변수 뺀 회귀 모델
+
+d <- c()
+for (i in 1:nrow(super)){
+  newdata <- super[-i, ]
+  m_full <- lm(Magnitude~., data=newdata)   # i번째 빠지고 변수는 다 사용한 모델
+  drop_col <- names(sort(abs(m_full$coefficients[c("E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10")]))[1:5])     # coefficient의 절대값이 작은 변수들
+  newdata_drop <- newdata %>% select(-all_of(drop_col))  # 절대값 작은 변수들 제외한 데이터
+  
+  m_reduced <- lm(Magnitude~., data=newdata_drop)  # 제외한 데이터로 모델 생성
+  
+  real_y <- super1[i, 6]   # 실제 y
+  data_reduced <- super %>% select(-all_of(drop_col))  # i번째가 있고, coefficient 작은 변수들 제외한 데이터
+  pred_y <- predict(m_reduced, newdata=data_reduced[i, -6])  # 예측
+  d[i] <- (real_y - pred_y)^2
+}
+err_r2 <- sum(d) / nrow(super)
+err_r2
+```
+
+            
+            
+            
+## 4.
+```{r}
+score <- read.csv('student_score.txt', sep=" ")[, 1:2]
+head(score)
+```
+```{r}
+tvalues <- c()
+theta <- cor(score)[1,2]
+for (i in 1:2000) {
+  idx <- sample(1:nrow(score), nrow(score), replace=TRUE)
+  new_data <- score[idx,]
+  theta_h <- cor(new_data)[1,2]
+  se <- (1-theta_h^2) / sqrt(19)
+  tvalues[i] <- (theta_h - theta) / se
+}
+```
+
+```{r}
+data.frame(tvalues) %>% ggplot(aes(tvalues))+
+  geom_histogram(fill="indianred")+theme_light()
+```
+         
+```{r}
+quantile(tvalues, 0.025)
+quantile(tvalues, 0.975)
+```
+       
+=> booststrap percentiles (t(0.025), t(0.975)) = (-1.62, 2.83)      
+(11.54)와 매우 유사항 값을 갖는다!
+
+
+            
+            
+            
+## 5.
+```{r}
+super <- read.csv('supernova.txt', sep=" ")
+head(super)
+```
+        
+#### (a)
+```{r}
+m <- lm(Magnitude~., data=super)
+summary(m)
+```
+
+
+```{r}
+pred_y <- predict(m, newdata=super[, 1:10])
+abs_y <- super$Magnitude
+data.frame(pred_y, abs_y) %>% ggplot(aes(pred_y, abs_y))+
+  geom_point(colour="indianred")+theme_light()+
+  geom_vline(xintercept = 0, color="skyblue")+
+  geom_hline(yintercept = 0, color="skyblue")+
+  labs(x="Predicted magnitude", y="Absolute magnitude")
+```
+            
+           
+#### (b)            
+```{r}
+sort(abs(m$coefficients))
+```
+          
+coefficient의 절대값이 작은 E10, E8, E3, E5, E9를 제외한다.        
+            
+```{r}
+m2 <- lm(Magnitude~E1+E2+E4+E6+E7, data=super)
+summary(m2)
+```
+          
+          
+#### (c)
+변수를 모두 사용한 첫번째 모델의 MSE는 1.001, 변수를 줄인 두번째 모델의 MSE는 0.9461로 두번째 모델의 MSE가 더 낮으므로 두번째 모델이 더 낫다고 할 수 있다.
+
+
+
+
+

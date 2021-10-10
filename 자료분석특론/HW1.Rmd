@@ -1,0 +1,57 @@
+---
+title: "HW1"
+output:
+  word_document: default
+  html_document: default
+---
+## 1.
+```{r}
+library(tidyverse)
+setwd('C:/Users/YJ-HWANG/Desktop/21-2/자료분석특론')
+data <- read.csv('leukemia_big.csv')
+head(data)
+data136 <- data[136,]
+```
+
+#### (1)
+```{r}
+ALL <- data136 %>% gather(method) %>% separate(method, c('method', 'n')) %>%
+  filter(method=='ALL') %>% select(method, value)
+
+meansALL <- c()
+for (i in 1:1000) {
+  boot <- sample(ALL[,2], 1000, replace=TRUE)
+  meansALL[i]  <- boot
+}
+```
+
+#### (2)
+```{r}
+AML <- data136 %>% gather(method) %>% separate(method, c('method', 'n')) %>%
+  filter(method=='AML') %>% select(method, value)
+
+meansAML <- c()
+for (i in 1:1000) {
+  boot <- sample(AML[,2], 1000, replace=TRUE)
+  meansAML[i]  <- boot
+}
+```
+
+#### (3)
+```{r}
+data.frame(meansALL) %>% ggplot(aes(meansALL))+geom_histogram(bins = 10, fill='Indianred')+
+  labs(title='histogram for ALL of gene 136', x='mean of ALL')+theme_light()
+```
+```{r}
+data.frame(meansAML) %>% ggplot(aes(meansAML))+geom_histogram(bins = 10, fill='Indianred')+
+  labs(title='histogram for AML of gene 136', x='mean of AML')+theme_light()
+```
+         
+ALL의 경우 1보다 작은 평균값이 많고 AML은 1보다 큰 값이 많으므로, 평균적으로 ALL보다 AML의 값이 더 크다고 할 수 있다.
+
+## 2.
+![2번](C:/Users/YJ-HWANG/문서/KakaoTalk_20210916_224341079.jpg)
+
+
+
+

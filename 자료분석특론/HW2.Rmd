@@ -1,0 +1,106 @@
+---
+title: "HW2"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+library(tidyverse)
+library(mvtnorm)
+setwd('C:/Users/YJ-HWANG/Desktop/21-2/자료분석특론')
+```
+        
+## 1.
+#### (a)
+```{r}
+d <- c()
+for (n in 1:200) {
+  x <- c()
+  mus <- c()
+  for (i in 1:500) {
+    mu = 3*i/500
+    x[i] <- rnorm(1, mu, 1)
+    mus[i] <- mu
+  }
+  imax <- which.max(x)
+  d[n] <- x[imax] - mus[imax]
+}
+```
+         
+         
+#### (b)
+```{r}
+data.frame(d) %>% ggplot(aes(d))+geom_histogram(bins = 20, fill='Indianred')+
+  labs(title='histogram of d', x='d')+theme_light()
+```
+          
+#### (c)
+????
+![1-c](HW2_1.jpg)
+      
+Figure 3.4: effect size 분포 / (b): 최댓값과 평균의 창에 대한 분포     
+-> (b)의 값이 클수록 다른 값들과의 차이가 크다
+      
+      
+## 2.
+```{r}
+data <- read.csv('leukemia_big.csv')
+data136 <- data[136,]
+head(data136)
+```
+        
+```{r}
+s <- data136 %>% gather(method) %>% separate(method, c('method', 'n')) %>% select(method, value)
+val <- s$value
+values <- c()
+for (i in 1:1000) {
+  idx <- sample(1:nrow(s), nrow(s))
+  permuted <- s$method[idx]
+  test <- t.test(val~permuted)
+  values[i] <- test$statistic
+}
+```
+```{r}
+tvalue <- t.test(value~method, data=s)$statistic
+data.frame(values) %>% ggplot(aes(values))+geom_histogram(bins = 30, fill='Indianred')+
+  labs(title='histogram of permuted t-value', x='permuted t values')+theme_light()+
+  geom_vline(xintercept = tvalue, col='red', linetype=2)+
+  geom_vline(xintercept = -tvalue, col='red', linetype=2)
+```
+
+        
+        
+## 3.
+####(a)
+![3-a](HW2_2.jpg)
+```{r}
+x <- rmvnorm(1000, mean=c(0,0), sigma=matrix(c(1,0.5,0.5,1), ncol=2))
+```
+
+```{r}
+df <- data.frame(x)
+reg <- lm(X2~X1, data=df)
+summary(reg)
+```
+```{r}
+sum((reg$residuals)^2)/998
+1 - 0.5*1*0.5   #numerically check
+```
+          
+          
+#### (b)
+
+```{r}
+reg2 <- lm(X1~X2, data=df)
+summary(reg2)
+```
+```{r}
+sum((reg2$residuals)^2)/998
+1 - 0.5*1*0.5   #numerically check
+```
+
+
+
+
+
