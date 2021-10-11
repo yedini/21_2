@@ -1,0 +1,168 @@
+---
+title: "HW2_R"
+output: html_document
+---
+
+## Load Packages
+```{r}
+library(tidyverse)
+library(numDeriv)
+```
+           
+           
+## 1. Define target function
+#### function 1.
+$g(x) = 2x^2-x$
+```{r}
+func1 <- function(x) {2*x^2-x}
+sam <- seq(-4,4, length.out=1000)
+minx <- sam[which.min(func1(sam))]
+data.frame(x=sam, y=func1(sam)) %>% ggplot(aes(x, y))+
+  geom_line(colour="indianred1", size=1.5)+
+  labs(y="g(x)", title="distribution of g(x)")+
+  theme_light()+theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=minx, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=minx+0.5, y=5, label=paste0("x=", round(minx, 2)))
+```
+          
+          
+          
+          
+#### function 2.
+$g(x) = log(x) / (1+x)$
+```{r}
+func2 <- function(x) {log(x) / (1+x)}
+sam <- seq(1, 5, length.out=1000)
+maxx <- sam[which.max(func2(sam))]
+data.frame(x=sam, y=func2(sam)) %>% ggplot(aes(x, y))+
+  geom_line(colour="indianred1", size=1.5)+
+  labs(y="g(x)", title="distribution of g(x)")+
+  theme_light()+theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=maxx, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=maxx+0.25, y=0.1, label=paste0("x=", round(maxx, 2)))
+```
+          
+          
+          
+          
+              
+#### function 3.
+$g(x) = (x^4+3.4x^2+5x+4) / \sqrt{2x^2+3}$
+```{r}
+func3 <- function(x) {(x^4+3.4*x^2+5*x+4)/sqrt(2*x^2+3)}
+sam <- seq(-10,10, length.out=10000)
+minx <- sam[which.min(func3(sam))]
+data.frame(x=sam, y=func3(sam)) %>% ggplot(aes(x, y))+
+  geom_line(colour="indianred1", size=1.5)+
+  labs(y="g(x)", title="distribution of g(x)")+
+  theme_light()+theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=minx, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=minx+1.5, y=50, label=paste0("x=", round(minx, 3)))
+```
+
+             
+              
+           
+## 2. NR method by R
+#### NR method function
+```{r}
+rf_by_nr <- function(func, x, thres=10^(-10), maxiter=1000) {
+  error <- 1        # stopping rule: abs conv. criterion
+  niter <- 0      # number of iteration
+  
+  while(niter <= maxiter & error >= thres) {
+    
+    # get derivative of g(x) at x by genD function
+    fo <- genD(func, x)$D[1, 1]   # first order derivative
+    so <- genD(func, x)$D[1, 2]   # second order derivative 
+
+    
+    #update x
+    x_1 <- x    # previous x
+    x <- x_1 - fo/so # new x
+    
+    # update error and niter
+    error <- abs(x_1 - x)
+    niter <- niter + 1
+    
+    # print result of step
+    print(paste(niter, x, error, sep=" "))
+    
+  }
+  
+  return(cat(" solution x*:", x, '\n',"g(x*):", func(x),'\n',"g'(x*):", genD(func, x)$D[1,1]))
+  
+}
+```
+        
+        
+#### root finding of target function by NR method
+```{r}
+#### function 1
+rf_by_nr(func1, 4)
+```
+```{r}
+#### function 1
+rf_by_nr(func2, 5)
+```
+```{r}
+#### function 1
+rf_by_nr(func3, 10)
+```
+            
+            
+            
+            
+## 3. Secant method by R
+#### Secant method function
+```{r}
+rf_by_se <- function(func, x_1, x, thres=10^(-10), maxiter=1000) {
+  error <- 1        # stopping rule: abs conv. criterion
+  niter <- 0      # number of iteration
+  
+  while(niter <= maxiter & error >= thres) {
+    
+    # get derivative of g(x) at x by genD function
+    d_x <- genD(func, x)$D[1, 1]   # derivative of x^(t)
+    d_x_1 <- genD(func, x_1)$D[1, 1]   # derivative of x^(t-1) 
+    
+    
+    #update x
+    x_t <- x   # x^(t) for calculating new x
+    x_t_1 <- x_1  # x^(t-1) for calculatin new x
+    x_1 <- x    # previous x
+    x <- x - d_x * (x_t - x_t_1) / (d_x - d_x_1) # new x
+    
+    # update error and niter
+    error <- abs(x_1 - x)
+    niter <- niter + 1
+    
+    # print result of step
+    print(paste(niter, x, error, sep=" "))
+    
+  }
+  
+  return(cat(" solution x*:", x, '\n',"g(x*):", func(x),'\n',"g'(x*):", genD(func, x)$D[1,1]))
+  
+}
+```
+        
+        
+#### root finding of target function by NR method
+```{r}
+## function 1
+rf_by_se(func1, -4, 4)
+```
+```{r}
+## function 2
+rf_by_se(func2, 0.001, 4)
+```
+```{r}
+## function 3
+rf_by_se(func3, -4, 4)
+```
+
+
+
+
+
