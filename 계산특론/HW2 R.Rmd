@@ -161,8 +161,311 @@ rf_by_se(func2, 0.001, 4)
 ## function 3
 rf_by_se(func3, -4, 4)
 ```
+           
+           
+           
+## Problem 2.1 (textbook p.54)
+#### a.
+```{r}
+#### Graph the log likelihood function
+sample <- c(1.77, -0.23,2.76, 3.80, 3.47, 56.75, -1.34, 4.24, -2.44, 3.29, 
+       3.71, -2.40, 4.53, -0.07, -1.05, -13.87, -2.53, -1.75, 0.27, 43.21)
 
+loglik <- function(theta, x) {
+  sum(log(dcauchy(x, theta, 1)))
+}
 
+theta <- seq(-100, 100, length.out=50000)
+s <- sapply(theta, function(theta) loglik(theta, sample))
+data <- data.frame(theta, s)
+
+maxidx <- which.max(data$s)
+maxx <- data[maxidx, 1]
+data.frame(theta, s) %>% ggplot(aes(theta, s)) +
+  geom_point(colour="indianred1")+ theme_light()+
+  labs(title="log-likelihood function", x="theta", y="l(theta)")+
+  theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=maxx, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=maxx+10, y=-170, label=paste0("x=", round(maxx, 4)))
+```
+             
+             
+```{r}
+#### NR method for problem 2.1 ####
+rf_by_nr_2 <- function(func, x, thres=10^(-10), maxiter=1000) {
+  error <- 1        # stopping rule: abs conv. criterion
+  niter <- 0      # number of iteration
+  
+  while(niter <= maxiter & error >= thres) {
+    
+    # get derivative of g(x) at x by genD function
+    fo <- genD(func, x)$D[1, 1]   # first order derivative
+    so <- genD(func, x)$D[1, 2]   # second order derivative 
+    
+    
+    #update x
+    x_1 <- x    # previous x
+    x <- x_1 - fo/so # new x
+    
+    # update error and niter
+    error <- abs(x_1 - x)
+    niter <- niter + 1
+
+    
+  }
+  
+  return(x)
+  
+}
+```
+```{r}
+sp <- c(-11, -1, 0, 1.5, 4, 4.7, 7, 8, 38)
+for (s in sp) {
+  print(paste("startig point:", s))
+  tryCatch(print(rf_by_nr_2(function(theta) loglik(theta, sample), s)),
+           error = function(e) print("Cannot find MLE"))
+}
+```
+         
+```{r}
+rf_by_nr_2(function(theta) loglik(theta, sample), mean(sample))
+```
+     
+위에서 그린 log-likelihood function에서 l(theta)가 최대갑을 갖는 x가 -0.18임을 고려했을 때, starting point가 -1, 0, 4.7일 때 MLE가 잘 찾아졌다고 할 수 있다.    
+또한 sample의 평균을 starting point로 사용한 NR method는 local maximum을 찾은 것으로 보인다.        
+            
+            
+#### b.
+```{r}
+#### Bisection method function
+rf_by_bisec <- function(func, a,b, thres=10^(-10), maxiter=1000) {
+  x <- (a+b)/2   # starting point
+  error <- 1        # stopping rule: abs conv. criterion
+  niter <- 0      # number of iteration
+  
+  while(niter <= maxiter & error >= thres) {
+    
+    # get derivative of g(x) at a,x by genD function
+    d1 <- genD(func, a)$D[1,1]
+    d2 <- genD(func, x)$D[1,1]
+    
+    # update interval 
+    if (d1 * d2 <= 0) {b <- x}
+    else {a <- x}
+    
+    #update x
+    x_1 <- x    # previous x
+    x <- (a+b)/2 # new x
+    
+    # update error and niter
+    error <- abs(x_1 - x)
+    niter <- niter + 1
+    
+    # print result of step
+    #print(paste(niter, x, error, a, b, sep=" "))
+    
+  }
+  
+  return(x)
+  
+}
+```
+```{r}
+rf_by_bisec(function(theta) loglik(theta, sample), -1, 1)
+```
+```{r}
+rf_by_bisec(function(theta) loglik(theta, sample), 1, 10)
+```
+         
+         
+         
+#### d.
+```{r}
+#### secant method for problem 2.1
+rf_by_se_2 <- function(func, x_1, x, thres=10^(-10), maxiter=1000) {
+  error <- 1        # stopping rule: abs conv. criterion
+  niter <- 0      # number of iteration
+  
+  while(niter <= maxiter & error >= thres) {
+    
+    # get derivative of g(x) at x by genD function
+    d_x <- genD(func, x)$D[1, 1]   # derivative of x^(t)
+    d_x_1 <- genD(func, x_1)$D[1, 1]   # derivative of x^(t-1) 
+    
+    
+    #update x
+    x_t <- x   # x^(t) for calculating new x
+    x_t_1 <- x_1  # x^(t-1) for calculatin new x
+    x_1 <- x    # previous x
+    x <- x - d_x * (x_t - x_t_1) / (d_x - d_x_1) # new x
+    
+    # update error and niter
+    error <- abs(x_1 - x)
+    niter <- niter + 1
+    
+  }
+  
+  return(x)
+  
+}
+```
+```{r}
+rf_by_se_2(function(theta) loglik(theta, sample), -2, -1)
+```
+```{r}
+rf_by_se_2(function(theta) loglik(theta, sample), -3, 3)
+```
+```{r}
+rf_by_se_2(function(theta) loglik(theta, sample), 0, 20)
+```
+        
+       
+       
+#### e.
+```{r}
+start_time <- Sys.time()
+rf_by_nr_2(function(theta) loglik(theta, sample), -1)
+end_time <- Sys.time()
+print(paste("NR method speed:", end_time-start_time))
+```
+```{r}
+start_time <- Sys.time()
+rf_by_bisec(function(theta) loglik(theta, sample), -1, 1)
+end_time <- Sys.time()
+print(paste("bisection method speed:", end_time-start_time))
+```
+```{r}
+start_time <- Sys.time()
+rf_by_se_2(function(theta) loglik(theta, sample), -2, -1)
+end_time <- Sys.time()
+print(paste("secant method speed:", end_time-start_time))
+```
+          
+속도: secant < bisection < NR
+안정성: ??         
+           
+           
+           
+```{r}
+#### Using N(theta, 1) distribution
+loglik2 <- function(theta, x) {
+  sum(log(dnorm(x, theta, 1)))
+}
+
+theta <- seq(0, 30, length.out=1000)
+s <- sapply(theta, function(theta) loglik2(theta, sample))
+data <- data.frame(theta, s)
+
+maxidx <- which.max(data$s)
+maxx <- data[maxidx, 1]
+data %>% ggplot(aes(theta, s)) +
+  geom_point(colour="indianred1")+ theme_light()+
+  labs(title="log-likelihood function", x="theta", y="l(theta)")+
+  theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=maxx, color="seagreen3", size=1, linetype=2)
+```
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+```{r}
+# start_time <- Sys.time()
+# rf_by_nr_2(function(theta) loglik2(theta, sample), 20)
+# end_time <- Sys.time()
+# print(paste("NR method speed:", end_time-start_time))
+# ```
+# ```{r}
+# start_time <- Sys.time()
+# rf_by_bisec(function(theta) loglik2(theta, sample), -1, 1)
+# end_time <- Sys.time()
+# print(paste("bisection method speed:", end_time-start_time))
+# ```
+# ```{r}
+# start_time <- Sys.time()
+# rf_by_se_2(function(theta) loglik2(theta, sample), -2, -1)
+# end_time <- Sys.time()
+# print(paste("secant method speed:", end_time-start_time))
+```
+           
+           
+           
+## Problem 2.2
+#### a.
+```{r}
+sample <- c(3.91, 4.85,2.28, 4.06, 3.70, 4.04, 5.46, 3.53, 2.28, 1.96, 2.53, 3.88, 2.22, 3.47, 4.82, 2.46, 2.99,2.54, 0.52, 2.50)
+
+loglik_2_2 <- function(theta, x) {
+  sum(log((1-cos(x-theta))/2*pi))
+}
+
+theta <- seq(-pi, pi, length.out=5000)
+s <- sapply(theta, function(theta) loglik_2_2(theta, sample))
+data <- data.frame(theta, s)
+
+data %>% ggplot(aes(theta, s)) +
+  geom_point(colour="indianred1", size=1)+ theme_light()+
+  labs(title="log-likelihood function", x="theta", y="l(theta)")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+           
+           
+           
+           
+#### c.
+```{r}
+# starting point: -0.058 (MMEof theta)
+rf_by_nr_2(function(theta) loglik_2_2(theta, sample), -0.058)
+```
+          
+```{r}
+# starting point: -2.7
+rf_by_nr_2(function(theta) loglik_2_2(theta, sample), -2.7)
+```
+           
+```{r}
+# starting point: 2.7
+rf_by_nr_2(function(theta) loglik_2_2(theta, sample), 2.7)
+```
+           
+           
+#### d.
+```{r}
+sv <- seq(-pi, pi, length.out=200)
+
+result <- c()
+for (i in 1:length(sv)) {
+  result[i] <- rf_by_nr_2(function(theta) loglik_2_2(theta, sample), sv[i])
+}
+
+data.frame(sv, result) %>% ggplot(aes(sv, result)) +
+  geom_point(colour="indianred1") + theme_light()+
+  labs(title="NR method result with starting value", x="starting value", y="solution x*") + theme(plot.title = element_text(hjust=0.5))
+```
+             
+분포의 미분값이 0이 되는 지점이 많아서 starting value에 따라 NR method의 solution이 달라지는 것을 알 수 있다.       
+         
+         
+         
+#### e.
+```{r}
+data <- data.frame(sv, result=round(result, 5))
+change <- data.frame(sv_front=c(), sol_front=c(), sv_back=c(), sol_back=c())
+for (i in 1:(nrow(data)-1)) {
+  if (data$result[i] != data$result[i+1]) {
+    change <- rbind(change, data.frame(sv_front=data$sv[i], sol_front=data$result[i], sv_back=data$sv[i+1], sol_back=data$result[i+1])) 
+  }
+}
+change
+```
+```{r}
+change$diff <- change$sol_front - change$sol_back
+change[which.min(abs(change$diff)),]
+```
+           
+: starting value가 2.478543에서 2.510117로 바뀌었을 때 NR method의 solution이 2.47537에서 2.51359로 바뀐다. solution이 바뀌는 지점들 중 두 solution의 차가 가장 작은 지점이다.
 
 
 
