@@ -1,0 +1,472 @@
+---
+title: "HW2_R"
+output:
+  word_document: default
+  html_document: default
+---
+
+## Load Packages & set options
+```{r}
+library(tidyverse)
+library(numDeriv)
+options(digits=17)
+```
+           
+           
+## 1. Define target function
+#### function 1.
+$g(x) = 2x^2-x$
+```{r}
+func1 <- function(x) {2*x^2-x}
+sam <- seq(-4,4, length.out=1000)
+minx <- sam[which.min(func1(sam))]
+data.frame(x=sam, y=func1(sam)) %>% ggplot(aes(x, y))+
+  geom_line(colour="indianred1", size=1.5)+
+  labs(y="g(x)", title="distribution of g(x) = 2x^2-x")+
+  theme_light()+theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=minx, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=minx+0.5, y=5, label=paste0("x=", round(minx, 2)))
+```
+          
+          
+          
+          
+#### function 2.
+$g(x) = log(x) / (1+x)$
+```{r}
+func2 <- function(x) {log(x) / (1+x)}
+sam <- seq(1, 5, length.out=1000)
+maxx <- sam[which.max(func2(sam))]
+data.frame(x=sam, y=func2(sam)) %>% ggplot(aes(x, y))+
+  geom_line(colour="indianred1", size=1.5)+
+  labs(y="g(x)", title="distribution of g(x) = log(x) / (1+x)")+
+  theme_light()+theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=maxx, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=maxx+0.25, y=0.1, label=paste0("x=", round(maxx, 2)))
+```
+          
+          
+          
+          
+              
+#### function 3.
+$g(x) = (x^4+3.4x^2+5x+4) / \sqrt{2x^2+3}$
+```{r}
+func3 <- function(x) {(x^4+3.4*x^2+5*x+4)/sqrt(2*x^2+3)}
+sam <- seq(-10,10, length.out=10000)
+minx <- sam[which.min(func3(sam))]
+data.frame(x=sam, y=func3(sam)) %>% ggplot(aes(x, y))+
+  geom_line(colour="indianred1", size=1.5)+
+  labs(y="g(x)", title="distribution of g(x) = (x^4+3.4x^2+5x+4) / sqrt(2x^2+3)")+
+  theme_light()+theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=minx, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=minx+1.5, y=50, label=paste0("x=", round(minx, 3)))
+```
+
+             
+              
+           
+## 2. NR method by R
+#### NR method function
+```{r}
+rf_by_nr <- function(func, x, thres=10^(-10), maxiter=1000) {
+  start_time <- Sys.time()
+  error <- 1        # stopping rule: abs conv. criterion
+  niter <- 0      # number of iteration
+  
+  while(niter <= maxiter & error >= thres) {
+    
+    # get derivative of g(x) at x by genD function
+    fo <- genD(func, x)$D[1, 1]   # first order derivative
+    so <- genD(func, x)$D[1, 2]   # second order derivative 
+
+    
+    #update x
+    x_1 <- x    # previous x
+    x <- x_1 - fo/so # new x
+    
+    # update error and niter
+    error <- abs(x_1 - x)
+    niter <- niter + 1
+    
+    # print result of step
+    #print(paste(niter, x, error, sep=" "))
+    
+  }
+  end_time <- Sys.time()
+  return(cat(" solution x*:", x, '\n',"g(x*):", func(x),'\n',"g'(x*):", genD(func, x)$D[1,1], '\n', "niter:", niter, '\n', "time:", end_time-start_time))
+  
+}
+```
+        
+        
+#### root finding of target function by NR method
+```{r}
+#### function 1
+rf_by_nr(func1, 4)
+```
+```{r}
+#### function 1
+rf_by_nr(func1, -4)
+```
+
+```{r}
+#### function 2
+rf_by_nr(func2, 5)
+```
+```{r}
+#### function 2
+rf_by_nr(func2, 1)
+```
+
+```{r}
+#### function 3
+rf_by_nr(func3, 10)
+```
+```{r}
+#### function 3
+rf_by_nr(func3, -10)
+```
+            
+            
+            
+            
+## 3. Secant method by R
+#### Secant method function
+```{r}
+rf_by_se <- function(func, x_1, x, thres=10^(-10), maxiter=1000) {
+  start_time <- Sys.time()
+  error <- 1        # stopping rule: abs conv. criterion
+  niter <- 0      # number of iteration
+  
+  while(niter <= maxiter & error >= thres) {
+    
+    # get derivative of g(x) at x by genD function
+    d_x <- genD(func, x)$D[1, 1]   # derivative of x^(t)
+    d_x_1 <- genD(func, x_1)$D[1, 1]   # derivative of x^(t-1) 
+    
+    
+    #update x
+    x_t <- x   # x^(t) for calculating new x
+    x_t_1 <- x_1  # x^(t-1) for calculatin new x
+    x_1 <- x    # previous x
+    x <- x - d_x * (x_t - x_t_1) / (d_x - d_x_1) # new x
+    
+    # update error and niter
+    error <- abs(x_1 - x)
+    niter <- niter + 1
+    
+    # print result of step
+    #print(paste(niter, x, error, sep=" "))
+    
+  }
+  end_time <- Sys.time()
+  return(cat(" solution x*:", x, '\n',"g(x*):", func(x),'\n',"g'(x*):", genD(func, x)$D[1,1], '\n', "niter:", niter, '\n', 'time:', end_time-start_time))
+  
+}
+```
+        
+        
+#### root finding of target function by NR method
+```{r}
+## function 1
+rf_by_se(func1, 4, -4)
+```
+```{r}
+## function 1
+rf_by_se(func1, 4, 12)
+```
+
+```{r}
+## function 2
+rf_by_se(func2, 5, 3)
+```
+```{r}
+## function 2
+rf_by_se(func2, 5, 10)
+```
+
+```{r}
+## function 3
+rf_by_se(func3, 4, -4)
+```
+```{r}
+## function 3
+rf_by_se(func3, 4, 12)
+```
+           
+           
+           
+## Problem 2.1 (textbook p.54)
+#### a.
+```{r}
+#### Graph the log likelihood function
+sample <- c(1.77, -0.23,2.76, 3.80, 3.47, 56.75, -1.34, 4.24, -2.44, 3.29, 
+       3.71, -2.40, 4.53, -0.07, -1.05, -13.87, -2.53, -1.75, 0.27, 43.21)
+
+loglik <- function(theta, x) {
+  sum(log(dcauchy(x, theta, 1)))
+}
+
+theta <- seq(-100, 100, by=0.001)
+s <- sapply(theta, function(theta) loglik(theta, sample))
+data <- data.frame(theta, s)
+
+maxidx <- which.max(data$s)
+maxx <- data[maxidx, 1]
+data.frame(theta, s) %>% ggplot(aes(theta, s)) +
+  geom_point(colour="indianred1")+ theme_light()+
+  labs(title="log-likelihood function", x="theta", y="l(theta)")+
+  theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=maxx, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=maxx+16, y=-170, label=paste0("theta=", round(maxx, 4)))
+```
+             
+             
+
+```{r}
+sp <- c(-11, -1, 0, 1.5, 4, 4.7, 7, 8, 38)
+for (s in sp) {
+  print(paste("startig point:", s))
+  tryCatch(print(rf_by_nr(function(theta) loglik(theta, sample), s)),
+           error = function(e) print("Cannot find MLE"))
+}
+```
+         
+-11이랑 8에서는 MLE를 구할 수 없음: 계산과정에서 g''(x)=0인 점이 발생해서 계산과정에서 오류가 생겨 계산이 되지 않는 것으로 보인다.(변곡점 생기는 부분 확대한 그래프 그리기)     
+         
+         
+```{r}
+rf_by_nr(function(theta) loglik(theta, sample), mean(sample))
+```
+     
+위에서 그린 log-likelihood function에서 l(theta)가 최대갑을 갖는 x가 -0.18임을 고려했을 때, starting point가 -1, 0, 4.7일 때 MLE가 잘 찾아졌다고 할 수 있다.    
+또한 sample의 평균을 starting point로 사용한 NR method는 local maximum을 찾은 것으로 보인다.        
+            
+            
+#### b.
+```{r}
+#### Bisection method function
+rf_by_bisec <- function(func, a,b, thres=10^(-10), maxiter=1000) {
+  start_time <- Sys.time()
+  x <- (a+b)/2   # starting point
+  error <- 1        # stopping rule: abs conv. criterion
+  niter <- 0      # number of iteration
+  
+  while(niter <= maxiter & error >= thres) {
+    
+    # get derivative of g(x) at a,x by genD function
+    d1 <- genD(func, a)$D[1,1]
+    d2 <- genD(func, x)$D[1,1]
+    
+    # update interval 
+    if (d1 * d2 <= 0) {b <- x}
+    else {a <- x}
+    
+    #update x
+    x_1 <- x    # previous x
+    x <- (a+b)/2 # new x
+    
+    # update error and niter
+    error <- abs(x_1 - x)
+    niter <- niter + 1
+    
+    # print result of step
+    #print(paste(niter, x, error, a, b, sep=" "))
+    
+  }
+  end_time <- Sys.time()
+  return(cat(" solution x*:", x, '\n',"g(x*):", func(x),'\n',"g'(x*):", genD(func, x)$D[1,1],"\n", "iteration:", niter, '\n', "time:", end_time-start_time))
+  
+}
+```
+```{r}
+rf_by_bisec(function(theta) loglik(theta, sample), -1, 1)
+```
+```{r}
+rf_by_bisec(function(theta) loglik(theta, sample), 1, 10)
+```
+초기 interval에 -0.1922가 존재하지 않아서 MLE 값이 제대로 구해지지 않는 것으로 보인다.
+         
+         
+         
+#### d.
+
+```{r}
+rf_by_se(function(theta) loglik(theta, sample), -2, -1)
+```
+```{r}
+rf_by_se(function(theta) loglik(theta, sample), -3, 3)
+```
+```{r}
+rf_by_se(function(theta) loglik(theta, sample), -1, 1)
+``` 
+```{r}
+rf_by_se(function(theta) loglik(theta, sample), 0, 20)
+```
+      
+       
+       
+#### e.
+
+          
+속도: bisection < secant < NR            
+안정성(iteration 횟수): secant = bisection < NR         
+           
+           
+      
+20개의 random sample을 뽑을 분포를 임의로 N(0,1)로 정하고 이를 데이터로 사용하여 MLE를 추정하였을 때, 추정한 theta값이 1에 가까운 값을 갖는지 확인, 각 method에 대해 speed와 stability를 비교.     
+```{r}
+#### generating random sample
+set.seed(777)
+sample <- rnorm(20, 0, 1)
+
+#### Using N(theta, 1) distribution
+loglik2 <- function(theta, x) {
+  sum(log(dnorm(x, theta, 1)))
+}
+
+theta <- seq(-20, 20, by=0.001)
+s <- sapply(theta, function(theta) loglik2(theta, sample))
+data <- data.frame(theta, s)
+
+maxidx <- which.max(data$s)
+maxx <- data[maxidx, 1]
+data %>% ggplot(aes(theta, s)) +
+  geom_point(colour="indianred1")+ theme_light()+
+  labs(title="log-likelihood function", x="theta", y="l(theta)")+
+  theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=maxx, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=maxx+3, y=-1500, label=paste0("theta=", round(maxx, 4)))
+```
+                   
+                   
+                   
+                   
+                   
+                   
+                   
+```{r}
+rf_by_nr(function(theta) loglik2(theta, sample), 1)
+```
+
+```{r}
+rf_by_bisec(function(theta) loglik2(theta, sample), -2, 2)
+```
+```{r}
+rf_by_se(function(theta) loglik2(theta, sample), -2, -1)
+```
+          
+           
+           
+           
+## Problem 2.2
+#### a.
+```{r}
+sample <- c(3.91, 4.85,2.28, 4.06, 3.70, 4.04, 5.46, 3.53, 2.28, 1.96, 2.53, 3.88, 2.22, 3.47, 4.82, 2.46, 2.99,2.54, 0.52, 2.50)
+
+loglik_2_2 <- function(theta, x) {
+  sum(log((1-cos(x-theta))/2*pi))
+}
+
+theta <- seq(-pi, pi, by=0.001)
+s <- sapply(theta, function(theta) loglik_2_2(theta, sample))
+data <- data.frame(theta, s)
+
+maxidx <- which.max(data$s)
+maxx <- data[maxidx, 1]
+data %>% ggplot(aes(theta, s)) +
+  geom_point(colour="indianred1", size=1)+ theme_light()+
+  labs(title="log-likelihood function", x="theta", y="l(theta)")+
+  theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept=maxx, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=maxx+0.5, y=-10, label=paste0("theta=", round(maxx, 3)))
+```
+           
+           
+           
+           
+#### c.
+
+```{r}
+# starting point: -0.058 (MME of theta)
+rf_by_nr(function(theta) loglik_2_2(theta, sample), 0.058)
+```
+          
+```{r}
+# starting point: -2.7
+rf_by_nr(function(theta) loglik_2_2(theta, sample), -2.7)
+```
+           
+```{r}
+# starting point: 2.7
+rf_by_nr(function(theta) loglik_2_2(theta, sample), 2.7)
+```
+           
+           
+#### d.
+```{r}
+rf_by_nr_onlyx <- function(func, x, thres=10^(-10), maxiter=1000) {
+  error <- 1        # stopping rule: abs conv. criterion
+  niter <- 0      # number of iteration
+  
+  while(niter <= maxiter & error >= thres) {
+    
+    # get derivative of g(x) at x by genD function
+    fo <- genD(func, x)$D[1, 1]   # first order derivative
+    so <- genD(func, x)$D[1, 2]   # second order derivative 
+    
+    
+    #update x
+    x_1 <- x    # previous x
+    x <- x_1 - fo/so # new x
+    
+    # update error and niter
+    error <- abs(x_1 - x)
+    niter <- niter + 1
+
+    
+  }
+  
+  return(x)
+  
+}
+```
+
+```{r}
+sv <- seq(-pi, pi, length.out=200)
+
+result <- c()
+for (i in 1:length(sv)) {
+  result[i] <- rf_by_nr_onlyx(function(theta) loglik_2_2(theta, sample), sv[i])
+}
+
+data.frame(sv, result) %>% ggplot(aes(sv, result)) +
+  geom_point(colour="indianred1") + theme_light()+
+  labs(title="NR method result with starting value", x="starting value", y="solution x*") + theme(plot.title = element_text(hjust=0.5))
+```
+             
+분포의 미분값이 0이 되는 지점이 많아서 starting value에 따라 NR method의 solution이 달라지는 것을 알 수 있다.       
+         
+         
+         
+#### e.
+```{r}
+data <- data.frame(sv, result=round(result, 5))
+
+options(digits=3)
+change <- data.frame(sv_1=c(), sol_1=c(), sv_2=c(), sol_2=c())
+for (i in 1:(nrow(data)-1)) {
+  if (data$result[i] != data$result[i+1]) {
+    change <- rbind(change, data.frame(sv_1=data$sv[i], sol_1=data$result[i], sv_2=data$sv[i+1], sol_2=data$result[i+1])) 
+  }
+}
+change
+```
+
+
+
+
+
+
+
