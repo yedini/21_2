@@ -1,0 +1,157 @@
+---
+title: "HW3_2"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+setwd("C:/Users/YJ-HWANG/Desktop/21-2/계산특론")
+
+library(tidyverse)
+library(leaps)
+library(GA)
+library(optimization)
+
+baseball <- read.csv("baseball.txt", sep=" ")
+head(baseball)
+baseball$salary <- log(baseball$salary)
+
+
+#### 1. leaps #### 
+reg1 <- regsubsets(salary ~ ., data=baseball, method = "exhaustive",nvmax=length(baseball))
+reg1_sum <- summary(reg1)
+
+# AIC 구하기
+mat<-reg1_sum$which  # 만들어진 각 모델에 포함된 변수에 관한 matrix
+p <- rowSums(data.frame(mat))  # 모델별 변수 개수
+n<- nrow(baseball)   # baseball 데이터 길이
+rss <- reg1_sum$rss    # 모델별 rss
+
+AIC <- c()
+for (i in 1:length(rss)) {
+  AIC[i] <- n*log(rss[i]/n)+2*p[i]
+}
+AIC
+which.min(AIC) # 12개에서 최소값
+
+# 모델별 AIC 시각화
+num <- 1:27
+minn <- num[which.min(AIC)]
+data.frame(num, AIC) %>% ggplot(aes(num, AIC)) +
+  geom_point(colour="firebrick3")+geom_line(colour="indianred")+
+  labs(x="number of variable in model", title="AIC by number of variable")+
+  theme_light()+theme(plot.title = element_text(hjust=0.5))+
+  geom_vline(xintercept = minn, color="seagreen3", size=1, linetype=2)+
+  annotate("text", x=minn+7, y=-250, label=paste("minimum AIC with # of variable =", minn))+
+  annotate("text", x=minn+3.2, y=-270, label=paste("AIC =", round(AIC[minn], 3)))
+
+coef(reg1, 12)  # 12개일 때 회귀 모델의 coefficients
+
+
+
+
+
+
+#### 2. stepwise regression ####
+m <- lm(salary~., data=baseball)
+
+## both 
+stepwise_both <- step(m, direction="both")
+AIC_step_both <- stepwise_both$anova[, c(1,6)]
+stepwise_both$coefficients   # 변수 12개
+
+## forward 
+m_null <- lm(salary~1, data=baseball)
+stepwise_fs <- step(m_null, 
+                    scope=list(lower=~1, upper=~average+obp+runs+hits+doubles+triples+homeruns+rbis+walks+sos+
+                                 sbs+errors+freeagent+arbitration+runsperso+hitsperso+hrsperso+rbisperso+
+                                 walksperso+obppererror+runspererror+hitspererror+soserrors+sbsobp+sbsruns+sbshits), direction="forward")
+AIC_step_fs <- stepwise_fs$anova[, c(1,6)]
+stepwise_fs$coefficients   # 변수 14개
+
+
+## backward   => both direction과 같은 결과
+stepwise_be <- step(m)
+AIC_step_be <- stepwise_be$anova[, c(1,6)]
+stepwise_be$coefficients   # 변수 12개
+
+
+
+#### 3. GA algorithm ####  
+x <- model.matrix(m)[, -1]
+y <- model.response(model.frame(m))
+
+fitnessf <- function(string) {
+  i <- which(string == 1)
+  X <- cbind(1, x[,i])
+  model <- lm.fit(X,y)
+  class(model) <- "lm"
+  -extractAIC(model)[2]
+}
+
+
+GAresult <- ga(type="binary", fitness=fitnessf, nBits=ncol(x),
+               names=colnames(x), monitor=plot, popSize=200, maxiter = 200)
+summary(GAresult)
+
+GAresult@solution
+
+ga.data <- data.frame(body.fat.siri = y,
+                      x[, GAresult@solution==1])
+ga.result <- lm(body.fat.siri~., data=ga.data)
+summary(ga.result)
+extractAIC(ga.result)[2]
+
+
+
+
+#### 4. Simulating Annealing ####
+fitnessf2 <- function(string) {
+  i <- which(string == 1)
+  X <- cbind(1, x[,i])
+  model <- lm.fit(X,y)
+  class(model) <- "lm"
+  extractAIC(model)[2]
+}
+
+var_func <- function(para_0, fun_length, rf, temp = NA){
+  ret_var_func <- para_0 + sample(c(0,rf), fun_length, replace = TRUE) *
+    ((rbinom(fun_length, 1, 0.5) * -2) + 1)
+  return (ret_var_func)
+}
+
+
+
+
+sa_results <-data.frame(t0=c(), r=c(), AIC=c()) 
+minAIC <- 1000000
+for (t0 in c(500, 1000, 1500)){
+  for (r in c(0.4, 0.6, 0.8)) {
+    sa_result <- optim_sa(fitnessf2, start=rep(0,27), 
+             lower=rep(0, 27), upper=rep(1, 27), trace=TRUE,
+             control=list(nlimit=1000, t0=t0, vf=var_func, dyn_rf=FALSE, rf=1, r=r))
+    new <- data.frame(t0=t0, r=r, AIC=sa_result$function_value)
+    sa_results <- rbind(sa_results, new)
+    if (minAIC > sa_result$function_value) {
+      minAIC <- sa_result$function_value
+      minresult <- sa_result 
+    }
+  
+  }
+}
+sa_results
+minresult
+
+
+sa.data <- data.frame(body.fat.siri = y,
+                      x[, minresult$par==1])
+sa.result <- lm(body.fat.siri~., data=sa.data)
+summary(sa.result)
+extractAIC(sa.result)
+
+
+
+
+
+```
