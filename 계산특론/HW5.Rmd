@@ -1,0 +1,88 @@
+---
+title: "HW5"
+output: html_document
+---
+
+```{r}
+setwd('C:/Users/YJ-HWANG/Desktop/21-2/계산특론')
+library(tidyverse)
+```
+          
+## Problem 2.
+```{r}
+#### Riemann Rule Function
+funcR <- function(fn, a, b, nsub=1000) {
+  h <- (b-a)/nsub
+  ints <- seq(a, b, by=h)
+  return(h*sum(sapply(ints, fn)))
+}
+```
+           
+```{r}
+#### Trapezoidal Rule Function
+funcT <- function(fn, a,b, nsub=1000) {
+  h <- (b-a)/nsub
+  fvalue <- sapply(seq(a, b, by=h), fn)
+  return(h*fvalue[1]/2 + h*sum(fvalue[2:nsub]) + h*fvalue[nsub+1]/2)
+}
+```
+        
+```{r}
+#### Simpson's Rule Function
+funcS <- function(fn, a, b, nsub=1000) {
+  h <- (b-a)/nsub
+  fvalue <- sapply(seq(a,b, by=h), fn)
+  return(h/3*(sum(fvalue[seq(1, nsub-1, by=2)])+4*sum(fvalue[seq(2, nsub, by=2)])+sum(fvalue[seq(2, nsub+1, by=2)])))
+}
+```
+
+
+          
+          
+          
+```{r}
+#### function 1) 2*x+1
+func1 <- function(x) 2*x+1
+funcR(func1, 3, 6)
+funcT(func1, 3, 6)
+funcS(func1, 3, 6)
+integrate(func1, 3, 6)
+```
+       
+
+
+
+
+```{r}
+#### function 2: log(x)/(1+x)
+func2 <- function(x) log(x)/(1+x)
+funcR(func2, 2, 5)
+funcT(func2, 2, 5)
+funcS(func2, 2, 5)
+integrate(func2, 2, 5)
+```
+          
+          
+```{r}
+#### function 3: log(x)/(1+x)
+func3 <- function(x) {(x^4+3.4*x^2+5*x+4)/sqrt(2*x^2+3)}
+funcR(func3, -4, 4)
+funcT(func3, -4, 4)
+funcS(func3, -4, 4)
+integrate(func3, -4, 4)
+```
+           
+           
+           
+           
+
+
+
+
+
+
+
+
+
+
+
