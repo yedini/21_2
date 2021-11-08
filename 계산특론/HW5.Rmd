@@ -1,6 +1,8 @@
 ---
 title: "HW5"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r}
@@ -9,31 +11,104 @@ library(tidyverse)
 ```
           
 ## Problem 2.
+
 ```{r}
 #### Riemann Rule Function
-funcR <- function(fn, a, b, nsub=1000) {
-  h <- (b-a)/nsub
+funcR <- function(fn, a, b, thres=10^(-10), maxiter=10) {
+  start_time <- Sys.time()
+  #initial values
+  error <- 1
+  niter <- 0
+  h <- (b-a)/2 ; n <- (b-a)/h     # initial h & n : divide interval into 2 subintervals
   ints <- seq(a, b, by=h)
-  return(h*sum(sapply(ints, fn)))
+  r <- h*sum(sapply(ints, fn))
+  
+  while(niter <= maxiter & error >= thres) {
+    # update integration
+    h_1 <- h ; r_1 <- r
+    h <- h_1/2 ; n <- (b-a)/h
+    ints <- seq(a, b, by=h)
+    r <- h*sum(sapply(ints, fn))
+    
+    # update error and niter
+    error <- abs(r_1 - r)
+    niter <- niter + 1
+    
+  }
+  end_time <- Sys.time()
+  return(cat("Riemann solution:", r,
+             "\t", "time:", end_time-start_time, 
+             "\n", "niter:", niter, "\t", "error:", error,
+             "\t", "# of subinterval:", n, "\n"))
 }
 ```
+
            
 ```{r}
 #### Trapezoidal Rule Function
-funcT <- function(fn, a,b, nsub=1000) {
-  h <- (b-a)/nsub
+
+funcT <- function(fn, a, b, thres=10^(-10), maxiter=10) {
+  start_time <- Sys.time()
+  #initial values
+  error <- 1
+  niter <- 0
+  h <- (b-a)/2 ; n <- (b-a)/h     # initial h & n : divide interval into 2 subintervals
   fvalue <- sapply(seq(a, b, by=h), fn)
-  return(h*fvalue[1]/2 + h*sum(fvalue[2:nsub]) + h*fvalue[nsub+1]/2)
+  t <- h*fvalue[1]/2 + h*sum(fvalue[2:n]) + h*fvalue[n+1]/2
+  
+  while(niter <= maxiter & error >= thres) {
+    # update integration
+    h_1 <- h ; t_1 <- t
+    h <- h_1/2 ; n <- (b-a)/h
+    fvalue <- sapply(seq(a, b, by=h), fn)
+    t <- h*fvalue[1]/2 + h*sum(fvalue[2:n]) + h*fvalue[n+1]/2
+    
+    # update error and niter
+    error <- abs(t_1 - t)
+    niter <- niter + 1
+    
+  }
+  end_time <- Sys.time()
+  return(cat("Trapezoidal solution:", t,
+             "\t", "time:", end_time-start_time, 
+             "\n", "niter:", niter, "\t", "error:", error, 
+             "\t", "# of subinterval:", n, "\n"))
 }
+
+
 ```
         
 ```{r}
 #### Simpson's Rule Function
-funcS <- function(fn, a, b, nsub=1000) {
-  h <- (b-a)/nsub
+funcS <- function(fn, a, b, thres=10^(-10), maxiter=10) {
+  start_time <- Sys.time()
+  #initial values
+  error <- 1
+  niter <- 0
+  h <- (b-a)/2 ; n <- (b-a)/h     # initial h & n : divide interval into 2 subintervals
   fvalue <- sapply(seq(a,b, by=h), fn)
-  return(h/3*(sum(fvalue[seq(1, nsub-1, by=2)])+4*sum(fvalue[seq(2, nsub, by=2)])+sum(fvalue[seq(2, nsub+1, by=2)])))
+  s <- h/3*(sum(fvalue[seq(1, n-1, by=2)])+4*sum(fvalue[seq(2, n, by=2)])+sum(fvalue[seq(2, n+1, by=2)]))
+  
+  while(niter <= maxiter & error >= thres) {
+    # update integration
+    h_1 <- h ; s_1 <- s
+    h <- h_1/2 ; n <- (b-a)/h
+    fvalue <- sapply(seq(a,b, by=h), fn)
+    s <- h/3*(sum(fvalue[seq(1, n-1, by=2)])+4*sum(fvalue[seq(2, n, by=2)])+sum(fvalue[seq(2, n+1, by=2)]))
+    
+    # update error and niter
+    error <- abs(s_1 - s)
+    niter <- niter + 1
+    
+  }
+  end_time <- Sys.time()
+  return(cat("Simpson's solution:", s,
+             "\t", "time:", end_time-start_time, 
+             "\n", "niter:", niter, "\t", "error:", error, 
+             "\t", "# of subinterval:", n, "\n"))
 }
+
+
 ```
 
 
@@ -42,11 +117,29 @@ funcS <- function(fn, a, b, nsub=1000) {
           
 ```{r}
 #### function 1) 2*x+1
-func1 <- function(x) 2*x+1
-funcR(func1, 3, 6)
-funcT(func1, 3, 6)
-funcS(func1, 3, 6)
-integrate(func1, 3, 6)
+func1 <- function(x) 2*x^2 - x
+
+sam <- seq(-4,4, length.out=1000)
+data.frame(x=sam, y=func1(sam)) %>% ggplot(aes(x, y))+
+  geom_line(colour="indianred1", size=1.5)+
+  labs(y="f(x)", title="distribution of f(x) = 2x^2-x")+
+  theme_light()+theme(plot.title = element_text(hjust=0.5))
+
+```
+
+
+```{r}
+funcR(func1, 0, 3)
+funcT(func1, 0, 3)
+funcS(func1, 0, 3)
+
+start_time <- Sys.time()
+intsol <- integrate(func1, 0, 3)
+end_time <- Sys.time()
+cat("R integrate solution:", intsol$value,
+             "\t", "time:", end_time-start_time, 
+    "\n", "error:", intsol$abs.error, 
+    "\t", "# of subinterval:", intsol$subdivisions)
 ```
        
 
@@ -56,25 +149,186 @@ integrate(func1, 3, 6)
 ```{r}
 #### function 2: log(x)/(1+x)
 func2 <- function(x) log(x)/(1+x)
+sam <- seq(1, 5, length.out=1000)
+data.frame(x=sam, y=func2(sam)) %>% ggplot(aes(x, y))+
+  geom_line(colour="indianred1", size=1.5)+
+  labs(y="f(x)", title="distribution of f(x) = log(x) / (1+x)")+
+  theme_light()+theme(plot.title = element_text(hjust=0.5))
+
+```
+
+```{r}
 funcR(func2, 2, 5)
 funcT(func2, 2, 5)
 funcS(func2, 2, 5)
-integrate(func2, 2, 5)
+
+start_time <- Sys.time()
+intsol <- integrate(func2, 2, 5)
+end_time <- Sys.time()
+cat("R integrate solution:", intsol$value,
+             "\t", "time:", end_time-start_time, 
+    "\n", "error:", intsol$abs.error, 
+    "\t", "# of subinterval:", intsol$subdivisions)
 ```
           
           
 ```{r}
 #### function 3: log(x)/(1+x)
 func3 <- function(x) {(x^4+3.4*x^2+5*x+4)/sqrt(2*x^2+3)}
+sam <- seq(-10,10, length.out=10000)
+data.frame(x=sam, y=func3(sam)) %>% ggplot(aes(x, y))+
+  geom_line(colour="indianred1", size=1.5)+
+  labs(y="f(x)", title="distribution of f(x) = (x^4+3.4x^2+5x+4) / sqrt(2x^2+3)")+
+  theme_light()+theme(plot.title = element_text(hjust=0.5))
+
+```
+
+```{r}
 funcR(func3, -4, 4)
 funcT(func3, -4, 4)
 funcS(func3, -4, 4)
-integrate(func3, -4, 4)
+
+start_time <- Sys.time()
+intsol <- integrate(func3, -4, 4)
+end_time <- Sys.time()
+cat("R integrate solution:", intsol$value,
+             "\t", "time:", end_time-start_time, 
+    "\n", "error:", intsol$abs.error, 
+    "\t", "# of subinterval:", intsol$subdivisions)
 ```
            
            
            
            
+## Problem 3.
+#### a.  
+
+```{r}
+x <- c(6.52, 8.32, 0.31, 2.82, 9.96, 0.14, 9.64)
+
+pconst <- function(mu) {
+  prior <- dt((mu-5)/2, df=1)/2
+  lik <- dnorm(mu, mean(x), 3/sqrt(7))
+  return(prior* lik)
+}
+
+1/integrate(pconst, -Inf, +Inf)$value
+```
+           
+           
+#### b.
+```{r}
+posterior <- function(mu) {pconst(mu)*7.84654}
+
+funcR(posterior, 2, 8, thres=0.0001)
+funcT(posterior, 2, 8, thres=0.0001)
+funcS(posterior, 2, 8, thres=0.0001)
+```
+           
+           
+#### c.
+```{r}
+posterior_t <- function(u) {
+  return(posterior(log(u/(1-u)))/(u*(1-u)))
+}
+```
+
+```{r eval=F}
+funcR(posterior_t, exp(3)/(1+exp(3)), 1, thres=0.0001)
+```
+```{r eval=F}
+funcT(posterior_t, exp(3)/(1+exp(3)), 1, thres=0.0001)
+```
+```{r}
+funcS(posterior_t, exp(3)/(1+exp(3)), 1, thres=0.0001)
+```
+```{r}
+funcR(posterior_t, exp(3)/(1+exp(3)), 1-10^(-10), thres=0.0001)
+funcT(posterior_t, exp(3)/(1+exp(3)), 1-10^(-10), thres=0.0001)
+funcS(posterior_t, exp(3)/(1+exp(3)), 1-10^(-10), thres=0.0001)
+```
+           
+#### d.
+#### c.
+```{r}
+posterior_t2 <- function(u) {
+  return(posterior(1/u)*(1/u^2))
+}
+```
+```{r eval=F}
+funcR(posterior_t2, 0, 1/3, thres=0.0001)
+```
+```{r eval=F}
+funcT(posterior_t2,  0, 1/3, thres=0.0001)
+```
+```{r eval=F}
+funcS(posterior_t2,  0, 1/3, thres=0.0001)
+```
+```{r}
+funcR(posterior_t2, 10^(-10), 1/3, thres=0.0001)
+funcT(posterior_t2, 10^(-10), 1/3, thres=0.0001)
+funcS(posterior_t2, 10^(-10), 1/3, thres=0.0001)
+```
+            
+                 
+             
+## Problem 4.
+```{r}
+funcT2 <- function(fn, a, b, n) {
+  h <- (b-a)/n
+  fvalue <- sapply(seq(a, b, by=h), fn)
+  t <- h*fvalue[1]/2 + h*sum(fvalue[2:n]) + h*fvalue[n+1]/2
+  return(t)
+}
+
+romberg <- function(fn, a, b, n) {
+  mat <- matrix(rep(0, n*n), ncol=n)
+  for (i in 1:n) {
+    mat[i, 1] <- funcT2(fn, a, b, i)
+  }
+  
+  for (k in 2:n) {
+    for (j in 2:k) {
+      mat[k, j] <- (4^j*mat[k, j-1]-mat[k-1, j-1])/(4^j-1) 
+    }
+  }
+  return(mat)
+}
+```
+
+```{r}
+### a = 5 -> loga=1.6094
+get_e <- function(x) {(5-1)/x * 1/(5-1)}
+romberg(get_e, 1, 5, 6)
+```
+```{r}
+log(5)
+```
+```{r}
+# a=2~10까지에 대해 실제 E(Y)와 추정한 E(Y)를 비교
+result <- data.frame(a=0, loga=0, estimated=0)
+for (a in 2:10) {
+  result[a-1, 1] <- a
+  result[a-1, 2] <- log(a)
+  e_mat <- romberg(function(x) {(a-1)/x * 1/(a-1)}, 1, a, 6)
+  result[a-1, 3] <- e_mat[6,6]
+}
+result
+```
+
+```{r}
+funcR(get_e, 1,5, thres=0.0001)
+funcT(get_e, 1,5, thres=0.0001)
+funcS(get_e, 1,5, thres=0.0001)
+```
+
+
+
+
+
+
+
+
 
 
 
