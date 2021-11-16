@@ -1,0 +1,81 @@
+---
+title: "HW7"
+output: html_document
+---
+```{r}
+library(tidyverse)
+```
+
+          
+          
+## Problem 1.
+```{r}
+## Slash density function
+slash <- function(x) {
+  result <- c()
+  for (i in 1:length(x)) {
+    if (x[i] == 0) {
+      result[i] <- 1/(2*sqrt(2*pi))
+    }
+    else {
+      result[i] <- (1-exp(-x[i]^2/2))/(x[i]^2*sqrt(2*pi))
+    }
+  }
+  return(result)
+}
+```
+
+```{r}
+# Isf: slash distribution / Target ft: normal distribution
+SlashforNormal <- function(m, n) {
+  Y <- rnorm(m) / runif(m)
+  IW <- (dnorm(Y)/slash(Y)) / sum((dnorm(Y)/slash(Y)))
+  X <- sample(Y, n, replace = TRUE, prob = IW)
+
+  return(X)
+}
+
+slashenv <- SlashforNormal(100000, 5000)
+```
+
+```{r}
+summary(slashenv)
+```
+```{r}
+data.frame(X=slashenv, xs=seq(-4, 4, length.out=5000)) %>% ggplot(aes(X))+
+  geom_histogram(aes(y=..density..), fill="lightpink", binwidth = 0.2)+
+  geom_line(aes(xs, dnorm(xs)), colour="indianred", size=1.2)+
+  theme(plot.title = element_text(hjust=0.5)) + theme_light()+
+  labs(x="x", y="Normal Density", title="Normal density via SIR using slash dist envelope")
+```
+           
+           
+```{r}
+# Isf: normal distribution / Target ft: slash distribution
+NormalforSlash <- function(m, n) {
+  Y <- rnorm(m)
+  IW <- (slash(Y)/dnorm(Y)) / sum((slash(Y)/dnorm(Y)))
+  X <- sample(Y, n, replace = TRUE, prob = IW)
+
+  return(X)
+}
+
+normalenv <- NormalforSlash(100000, 5000)
+```
+```{r}
+summary(normalenv)
+```
+```{r}
+data.frame(X=normalenv, xs=seq(-7, 7, length.out=5000)) %>% ggplot(aes(X))+
+  geom_histogram(aes(y=..density..), fill="lightpink", binwidth = 0.2)+
+  geom_line(aes(xs, slash(xs)), colour="indianred", size=1.2)+
+  theme(plot.title=element_text(hjust=0.5))+theme_light()+
+  labs(x="x", y="Slash Density", title="Slash density via SIR using normal dist envelope")
+```
+
+
+
+
+
+
+
