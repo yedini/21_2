@@ -1,6 +1,8 @@
 ---
 title: "HW7"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 ```{r}
 library(tidyverse)
@@ -40,6 +42,7 @@ slashenv <- SlashforNormal(100000, 5000)
 
 ```{r}
 summary(slashenv)
+var(slashenv)
 ```
 ```{r}
 data.frame(X=slashenv, xs=seq(-4, 4, length.out=5000)) %>% ggplot(aes(X))+
@@ -64,6 +67,7 @@ normalenv <- NormalforSlash(100000, 5000)
 ```
 ```{r}
 summary(normalenv)
+var(normalenv)
 ```
 ```{r}
 data.frame(X=normalenv, xs=seq(-7, 7, length.out=5000)) %>% ggplot(aes(X))+
@@ -72,6 +76,98 @@ data.frame(X=normalenv, xs=seq(-7, 7, length.out=5000)) %>% ggplot(aes(X))+
   theme(plot.title=element_text(hjust=0.5))+theme_light()+
   labs(x="x", y="Slash Density", title="Slash density via SIR using normal dist envelope")
 ```
+              
+              
+              
+## Problem 2.
+```{r}
+## Isf: prior density / Target function: Posterior
+b_resampling <- function(m, n) {
+  x <- c(8, 3, 4, 3, 1, 7, 2, 6, 2, 7)
+  Y <- rlnorm(m, log(4), 0.5)
+  lik <- c()
+  for (y in Y) {
+    lik <- append(lik, prod(dpois(x,y)))
+  }
+  X <- sample(Y, n, replace = TRUE, prob = lik)
+
+  return(X)
+}
+
+samples <- b_resampling(10^5, 10^4)
+```
+
+```{r}
+data.frame(samples=samples) %>% ggplot(aes(sample=samples))+
+  stat_qq(distribution = qlnorm, color="indianred")+
+  stat_qq_line(distribution = qlnorm,
+               color="seagreen3", size=1)+
+  theme_light()+
+  labs(x="Lognormal quantiles",
+       y="Rejection sampling result",
+       title="Lognromal QQplot with SIR")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+```{r}
+mean(samples)    # mean of samples
+var(samples)     # variance of samples
+summary(samples)
+```
+           
+           
+```{r}
+### Rejection sampling ###
+rs <- function(n, x) {       # n: sample 개수   x: observations
+  niter <- 0
+  reject_num <- 0
+  accept_num <- 0
+  samples <- c()
+  
+  while (accept_num < n) {
+    y <- rlnorm(1, log(4), 0.5)   # proposal density
+    u <- runif(1)   # sample for rejection
+    value <- prod(dpois(x, y))/prod(dpois(x, 4.3))
+
+    if (u > value) {
+      reject_num <- reject_num + 1
+    }
+    else {
+      samples <- append(samples, y)
+      accept_num <- accept_num + 1
+    }
+    niter <- niter+1
+  }
+  cat(
+      "# of total iteration:", niter, "\n",
+      "# of acceptance:", accept_num, "\t", "# of rejection:", reject_num, "\n",
+      "acceptance ratio:", accept_num/niter)
+  return(samples)
+}
+```
+```{r}
+x <- c(8, 3, 4, 3, 1, 7, 2, 6, 2, 7)
+samples2 <- rs(10^4, x)
+```
+```{r}
+mean(samples2)    # mean of samples
+var(samples2)     # variance of samples
+summary(samples2)
+```
+```{r}
+data.frame(samples=samples2) %>% ggplot(aes(sample=samples2))+
+  stat_qq(distribution = qlnorm, color="indianred")+
+  stat_qq_line(distribution = qlnorm,
+               color="seagreen3", size=1)+
+  theme_light()+
+  labs(x="Lognormal quantiles",
+       y="Rejection sampling result",
+       title="Lognromal QQplot with rejection sampling")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+
+
+
 
 
 
