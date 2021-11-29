@@ -1,0 +1,528 @@
+---
+title: "HW8"
+output:
+  word_document: default
+  html_document: default
+---
+                
+## Problem 6.3
+#### a.
+```{r}
+q <- function(x) exp(-abs(x)^3/3)
+```
+
+```{r}
+library(tidyverse)
+x <- seq(-4, 4, by=0.01)
+qx <- q(x)
+data.frame(x, qx) %>% ggplot(aes(x, qx))+geom_line(colour="indianred", size=1)+
+  theme_light()+labs(title="distribution of q(x)")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+```{r}
+data.frame(x, qx, normal=dnorm(x)) %>% ggplot(aes(x, qx))+
+  geom_line(colour="indianred", size=1)+geom_line(aes(x, normal), colour="slateblue3", size=1)+
+  theme_light()+labs(title="standard normal and q(x) distribution")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+
+```{r}
+IS <- function(n) {
+  x <- rnorm(n)
+  est <- sum(x^2*q(x)/dnorm(x))/sum(q(x)/dnorm(x))
+  return(est)
+}
+```
+           
+```{r}
+IS(1000)
+```
+            
+            
+#### b.
+```{r}
+rs <- function(n, print=TRUE) {  # n: sample 개수
+  
+  niter <- 0
+  reject_num <- 0
+  accept_num <- 0
+  samples <- c()
+  
+  while (accept_num < n) {
+    z <- rnorm(1)   # proposal density
+    u <- runif(1)   # sample for rejection
+    t <- q(z)/dnorm(z)
+    
+    if (u > t) {
+      reject_num <- reject_num + 1
+    }
+    else {
+      samples <- append(samples, z)
+      accept_num <- accept_num + 1
+    }
+    niter <- niter+1
+  }
+  if (print == TRUE) {
+    cat(
+        "# of total iteration:", niter, "\n",
+        "# of acceptance:", accept_num, "\t", "# of rejection:", reject_num, "\n",
+        "acceptance ratio:", accept_num/niter, "\n")
+  }
+  return(samples)
+}
+```
+```{r}
+rsdata <- rs(1000)
+mean(rsdata^2)
+```
+        
+        
+        
+#### c.
+```{r}
+prmethod <- function(x) {
+  x <- sort(x)
+  n <- c()
+  d <- c()
+  for (i in 1:length(x)-1) {
+    n <- append(n, (x[i+1]-x[i])*x[i]^2*q(x[i]))
+    d <- append(d, (x[i+1]-x[i])*q(x[i]))
+  }
+  return(sum(n)/sum(d))
+}
+```
+```{r}
+prmethod(rsdata)
+```
+         
+         
+#### d.
+rejection sampling을 통한 계산과 Philippe and Robert 계산을 1000번 반복
+```{r}
+result <- data.frame(n = 1:1000, rs=rep(1, 1000), pr=rep(1, 1000))
+for (i in 1:nrow(result)) {
+  samples <- rs(1000, print=FALSE)
+  result[i, 2] <- mean(samples^2)
+  result[i, 3] <- prmethod(samples)
+}
+sd(result$rs)
+sd(result$pr)
+```
+```{r}
+summary(result$rs)
+```
+```{r}
+summary(result$pr)
+```
+
+
+
+           
+           
+           
+## Problem 6.6
+#### a.
+```{r}
+X <- list()
+for (i in 1:1000) {
+  X[[i]] <- rpois(25, 2)
+}
+
+get_hx <- function(X) {
+  h <- c()
+  for (n in 1:length(X)) {
+    xi <- X[[n]]
+    z <- (mean(xi)-2)/sqrt(2/25)
+    h <- append(h, ifelse(z>=1.645, 1, 0))
+  }
+  return(h)
+}
+```
+         
+```{r}
+# Naive MC
+a_mc <- mean(get_hx(X))
+a_mc
+```
+
+
+```{r}
+# Antithetic sampling
+a_as <- sum(get_hx(X[1:500])+get_hx(lapply(X[1:500], function(x) -x)))/1000
+a_as
+```
+
+```{r}
+# data from envelope function
+X_env <- list()
+for (i in 1:1000) {
+  X_env[[i]] <- rpois(25, 2.4653)
+}
+
+# Importance sampling with unstandardized weight
+w <- c()
+for (i in 1:length(X_env)) {
+  w <- append(w, dpois(X_env[[i]], 2)/dpois(X_env[[i]], 2.4653))
+}
+ISUW <- mean(get_hx(X_env)*w)
+ISUW
+```
+                 
+               
+
+
+```{r}
+# Importance sampling with standardized weight
+w <- c()
+for (i in 1:length(X_env)) {
+  w <- append(w, dpois(X_env[[i]], 2)/dpois(X_env[[i]], 2.4653))
+}
+ISSW <- sum(get_hx(X_env)*w/sum(w))
+ISSW
+```
+        
+```{r}
+# control variate
+y <- get_hx(X)*w
+lambda <- lm(y~w)$coefficients[2]
+ISCV <- ISUW + lambda*(mean(w)-1)
+ISCV
+```
+```{r}
+## replicating simulation function
+simulation <- function(lambda) {
+  # 결과값을 저장할 빈 벡터 생성
+  mc <- c()
+  as <- c()
+  ISUW <- c()
+  ISSW <- c()
+  ISCV <- c()
+
+  
+  # 1000개의 estimate 생성
+  for (ii in 1:1000) {
+    
+    # random data 생성
+    X <- list()
+    for (i in 1:1000) {
+      X[[i]] <- rpois(25, lambda)
+    }
+  
+    # random data for envelope function
+    X_env <- list()
+    for (i in 1:1000) {
+      X_env[[i]] <- rpois(25, 2.4653)
+    }
+  
+    w <- c()   # weight
+    for (i in 1:length(X_env)) {
+      w <- append(w, dpois(X_env[[i]], lambda)/dpois(X_env[[i]], 2.4653))
+    }  
+    
+    # calculate estimate
+    mc <- append(mc, mean(get_hx(X)))  
+    as <- append(as, sum(get_hx(X[1:500])+get_hx(lapply(X[1:500], function(x) -x)))/1000)
+    ISUW <- append(ISUW, mean(get_hx(X_env)*w))
+    ISSW <- append(ISSW, sum(get_hx(X_env)*w/sum(w)))
+  
+    y <- get_hx(X)*w
+    pois_l <- lm(y~w)$coefficients[2]
+    ISCV <- ISUW + pois_l*(mean(w)-1)
+  }
+  return(data.frame(mc, as, ISUW, ISSW, ISCV))
+}
+```
+                
+                
+```{r}
+result_2 <- simulation(2)
+head(result_2)
+```
+        
+```{r}
+cat("Confidence Interval for alpha=0.05", "\n","\n",
+    "[Simple monte carlo]", "\n",
+    "lower:", mean(result_2$mc)-qnorm(1-0.05/2)*sd(result_2$mc)/sqrt(nrow(result_2)),
+    "upper:", mean(result_2$mc)+qnorm(1-0.05/2)*sd(result_2$mc)/sqrt(nrow(result_2)), "\n","\n",
+    "[Antithetic Sampling]", "\n",
+    "lower:", mean(result_2$as)-qnorm(1-0.05/2)*sd(result_2$as)/sqrt(nrow(result_2)),
+    "upper:", mean(result_2$as)+qnorm(1-0.05/2)*sd(result_2$as)/sqrt(nrow(result_2)), "\n","\n",
+    "[Important sampling with unstandardized weights]", "\n",
+    "lower:", mean(result_2$ISUW)-qnorm(1-0.05/2)*sd(result_2$ISUW)/sqrt(nrow(result_2)),
+    "upper:", mean(result_2$ISUW)+qnorm(1-0.05/2)*sd(result_2$ISUW)/sqrt(nrow(result_2)), "\n","\n",
+    "[Important sampling with standardized weights]", "\n",
+    "lower:", mean(result_2$ISSW)-qnorm(1-0.05/2)*sd(result_2$ISSW)/sqrt(nrow(result_2)),
+    "upper:", mean(result_2$ISSW)+qnorm(1-0.05/2)*sd(result_2$ISSW)/sqrt(nrow(result_2)), "\n","\n",
+    "[Important sampling with control variate]", "\n",
+    "lower:", mean(result_2$ISCV)-qnorm(1-0.05/2)*sd(result_2$ISCV)/sqrt(nrow(result_2)),
+    "upper:", mean(result_2$ISCV)+qnorm(1-0.05/2)*sd(result_2$ISCV)/sqrt(nrow(result_2)), "\n")
+```
+          
+          
+#### b.
+```{r}
+get_power <- function(X, lambda, n) {
+  h <- c()
+  for (l in 1:length(X)) {
+    xi <- X[[l]]
+    beta <- pnorm((mean(xi)-lambda)/sqrt(2/n))
+    h <- append(h, 1-beta)
+  }
+  return(h)
+}
+```
+
+```{r}
+power <- function(lambda){
+  X <- list()
+  for (i in 1:1000) {
+    X[[i]] <- rpois(25, lambda)
+  }
+  
+  X_env <- list()
+  for (i in 1:1000) {
+    X_env[[i]] <- rpois(25, 2.4653)
+  }
+  
+  w <- c()   # weight
+  for (i in 1:length(X_env)) {
+    w <- append(w, dpois(X_env[[i]], lambda)/dpois(X_env[[i]], 2.4653))
+  }
+  
+  mc <- c()
+  as <- c()
+  ISUW <- c()
+  ISSW <- c()
+  ISCV <- c()
+  
+  for (n in 1:100) {
+    mc <- append(mc, mean(get_power(X, lambda, n)))
+    as <- append(as, sum(get_power(X[1:500], lambda, n)+get_power(lapply(X[1:500], function(x) -x), lambda, n))/1000)
+    ISUW <- append(ISUW, mean(get_power(X_env, lambda, n)*w))
+    ISSW <- append(ISSW, sum(get_power(X_env, lambda, n)*w/sum(w)))
+  
+    y <- get_power(X, lambda, n)*w
+    pois_l <- lm(y~w)$coefficients[2]
+    ISCV <- ISUW + pois_l*(mean(w)-1)
+  }
+  return(data.frame(mc, as, ISUW, ISSW, ISCV))
+}
+
+```
+```{r}
+df.22 <- power(lambda=2.2)
+df.26 <- power(lambda=2.6)
+df.30 <- power(lambda=3)
+df.35 <- power(lambda=3.5)
+df.40 <- power(lambda=4)
+```
+
+
+
+```{r}
+# Power curve with simple Monte carlo
+data.frame(n=1:100, n.22=df.22$mc, n.26=df.26$mc, n.30=df.30$mc,
+           n.35=df.35$mc, n.40=df.40$mc) %>%
+  ggplot()+geom_line(aes(n, n.22), color="red")+geom_line(aes(n, n.26), color="blue")+
+  geom_line(aes(n, n.30), color="green")+
+  geom_line(aes(n, n.35), color="purple")+geom_line(aes(n, n.40), color="pink")+
+  theme_light()+labs(x="size of sample", y="power", title="Power curve with simple Monte carlo")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+```{r}
+# Power curve with simple Monte carlo
+data.frame(n=1:100, n.22=df.22$as, n.26=df.26$as, n.30=df.30$as,
+           n.35=df.35$as, n.40=df.40$as) %>%
+  ggplot()+geom_line(aes(n, n.22), color="red")+geom_line(aes(n, n.26), color="blue")+
+  geom_line(aes(n, n.30), color="green")+
+  geom_line(aes(n, n.35), color="purple")+geom_line(aes(n, n.40), color="pink")+
+  theme_light()+labs(x="size of sample", y="power", title="Power curve with Antithetic sampling")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+```{r}
+# Power curve with Important sampling with unstandardized weights
+data.frame(n=1:100, n.22=df.22$ISUW, n.26=df.26$ISUW, n.30=df.30$ISUW,
+           n.35=df.35$ISUW, n.40=df.40$ISUW) %>%
+  ggplot()+geom_line(aes(n, n.22), color="red")+geom_line(aes(n, n.26), color="blue")+
+  geom_line(aes(n, n.30), color="green")+
+  geom_line(aes(n, n.35), color="purple")+geom_line(aes(n, n.40), color="pink")+
+  theme_light()+labs(x="size of sample", y="power", title="Power curve with Important sampling with unstandardized weights")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+```{r}
+# Power curve with Important sampling with standardized weights
+data.frame(n=1:100, n.22=df.22$ISSW, n.26=df.26$ISSW, n.30=df.30$ISSW,
+           n.35=df.35$ISSW, n.40=df.40$ISSW) %>%
+  ggplot()+geom_line(aes(n, n.22), color="red")+geom_line(aes(n, n.26), color="blue")+
+  geom_line(aes(n, n.30), color="green")+
+  geom_line(aes(n, n.35), color="purple")+geom_line(aes(n, n.40), color="pink")+
+  theme_light()+labs(x="size of sample", y="power", title="Power curve with Important sampling with standardized weights")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+```{r}
+# Power curve with Important sampling with control variate
+data.frame(n=1:100, n.22=df.22$ISCV, n.26=df.26$ISCV, n.30=df.30$ISCV,
+           n.35=df.35$ISCV, n.40=df.40$ISCV) %>%
+  ggplot()+geom_line(aes(n, n.22), color="red")+geom_line(aes(n, n.26), color="blue")+
+  geom_line(aes(n, n.30), color="green")+
+  geom_line(aes(n, n.35), color="purple")+geom_line(aes(n, n.40), color="pink")+
+  theme_light()+labs(x="size of sample", y="power", title="Power curve with Important sampling with control variate")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+
+
+           
+           
+## Problem 6.7
+#### a.
+```{r}
+s0 <- 50
+K <- 52
+vol <- 0.5
+N <- 30
+r <- 0.05
+
+C <- c()
+for (i in 1:1000) {
+  s <- s0*exp((r-vol^2/2)*N/365+vol*rnorm(1)*sqrt(N/365))
+  C <- append(C, exp(-r*N/365)*max(0, s-K))
+}
+mean(C)
+
+```
+        
+        
+#### b.
+
+```{r}
+X <- list()
+for (i in 1:1000) {
+  X[[i]] <- rnorm(30)
+}
+
+get_A <- function(X) {
+  A <- c()  
+  for (n in 1:length(X)) {
+    s <- c()
+    s_t <- s0
+    z <- X[[n]]
+    for (i in 1:30) {
+      s_t1 <- s_t * exp((r-vol^2/2)/365+vol*z[i]/sqrt(365))
+      s <- append(s, s_t1)
+      s_t <- s_t1
+    }
+    sbar <- mean(s)
+    A <- append(A, exp(-r*N/365)*max(0, sbar-K))
+  }
+  return(A)
+}
+mu_mc <- mean(get_A(X))
+mu_mc
+```
+
+       
+       
+#### c.
+```{r}
+n <- 1000 #the number of prices in the average
+c3 <- 1 + 1/n
+c2 <- vol * (c3*N/1095*(1+1/(2*n)))^(1/2)
+c1 <- (log(s0/K)+c3*N/730*(r-vol^2/2)+c3*vol^2*N/1095*(1+1/(2*n)))/c2
+
+theta <- s0*pnorm(c1)*exp(-N*(r+c3*vol^2/6)*(1-1/n)/730)-
+  K*pnorm(c1-c2)*exp(-r*N/365)
+
+get_A_by_geomean <- function(X) {
+  A <- c()  
+  for (n in 1:length(X)) {
+    s <- c()
+    s_t <- s0
+    z <- X[[n]]
+    for (i in 1:30) {
+      s_t1 <- s_t * exp((r-vol^2/2)/365+vol*z[i]/sqrt(365))
+      s <- append(s, s_t1)
+      s_t <- s_t1
+    }
+    sbar <- (prod(s))^(1/N)
+    A <- append(A, exp(-r*N/365)*max(0, sbar-K))
+  }
+  return(A)
+}
+
+theta_mc <- mean(get_A_by_geomean(X))
+
+mu_cv <- mu_mc-1*(theta_mc - theta)
+mu_cv
+```
+          
+          
+          
+#### d.
+```{r}
+mu_as <- sum(get_A(X[1:500])+get_A(lapply(X[1:500], function(x) -x)))/1000
+mu_as
+```
+         
+       
+#### e.
+```{r}
+mc <- c()
+cv <- c()
+as <- c()
+
+for (ii in 1:1000) {
+  X <- list()
+  for (i in 1:1000) {
+    X[[i]] <- rnorm(30)
+  }
+  mc <- append(mc, mean(get_A(X)))
+  cv <- append(cv, mu_mc-1*(mean(get_A_by_geomean(X)) - theta))
+  as <- append(as, sum(get_A(X[1:500])+get_A(lapply(X[1:500], function(x) -x)))/1000)
+}
+
+sd(mc) ; sd(cv) ; sd(as)
+```
+```{r}
+summary(mc)
+```
+```{r}
+summary(cv)
+```
+```{r}
+summary(as)
+```
+```{r}
+df <- data.frame(mc=mc, as=as, cv=cv)
+
+# distribution of naive MC
+df %>% ggplot(aes(mc))+geom_histogram(fill="indianred", bins=25)+
+  theme_light()+labs(title="Estimate distribution of fair price by Naive MC", 
+                     x="Estimated fair price") +
+  theme(plot.title = element_text(hjust=0.5))
+```
+```{r}
+# distribution of antithetic sampling
+df %>% ggplot(aes(as))+geom_histogram(fill="indianred", bins=25)+
+  theme_light()+labs(title="Estimate distribution of fair price by antithetic sampling", 
+                     x="Estimated fair price") +
+  theme(plot.title = element_text(hjust=0.5))
+```
+```{r}
+# distribution of control variate strategy
+df %>% ggplot(aes(cv))+geom_histogram(fill="indianred", bins=25)+
+  theme_light()+labs(title="Estimate distribution of fair price by control variate strategy", 
+                     x="Estimated fair price") +
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+
+
+
+
+
+
+
+
+
